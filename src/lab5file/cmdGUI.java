@@ -22,11 +22,9 @@ public class cmdGUI extends JFrame implements Procesos.IGUICallback {
     private static final Font FONT_MONO = new Font("Consolas", Font.PLAIN, 14);
 
     private JTextPane      areaTerminal;
-    private JTextField     campoInput;
-    private JLabel         labelPrompt;
-    private JLabel         labelEstado;
     private StyledDocument doc;
     private Procesos       processor;
+    private String         promptActual = "C:\\>";
 
     public cmdGUI() {
         super("C:\\WINDOWS\\system32\\cmd.exe");
@@ -39,14 +37,13 @@ public class cmdGUI extends JFrame implements Procesos.IGUICallback {
         if (icono != null) setIconImage(icono.getImage());
 
         construirUI();
-        configurarEventos();
     }
 
     public void setProcessor(Procesos processor) {
         this.processor = processor;
-        actualizarPrompt("C:\\>");
         mostrarBienvenida();
-        campoInput.requestFocusInWindow();
+        imprimirPrompt();
+        areaTerminal.requestFocusInWindow();
     }
 
     private void construirUI() {
@@ -54,12 +51,50 @@ public class cmdGUI extends JFrame implements Procesos.IGUICallback {
         getContentPane().setBackground(BG_NEGRO);
 
         areaTerminal = new JTextPane();
-        areaTerminal.setEditable(false);
+        areaTerminal.setEditable(true);
         areaTerminal.setBackground(BG_NEGRO);
         areaTerminal.setForeground(COL_NORMAL);
         areaTerminal.setFont(FONT_MONO);
         areaTerminal.setMargin(new Insets(4, 6, 4, 6));
+        areaTerminal.setCaretColor(COL_NORMAL);
         doc = areaTerminal.getStyledDocument();
+
+        areaTerminal.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                int caret  = areaTerminal.getCaretPosition();
+                int limite = getLimiteEntrada();
+
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    e.consume();
+                    String todo    = areaTerminal.getText();
+                    String comando = todo.substring(limite).trim();
+                    appendTexto("\n", COL_NORMAL);
+                    if (processor != null) processor.procesarLinea(comando);
+                    if (!processor.isModoEscritura()) imprimirPrompt();
+                    return;
+                }
+
+                if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE && caret <= limite) {
+                    e.consume();
+                    return;
+                }
+
+                if (e.getKeyCode() == KeyEvent.VK_LEFT && caret <= limite) {
+                    e.consume();
+                    return;
+                }
+
+                if (e.getKeyCode() == KeyEvent.VK_UP || e.getKeyCode() == KeyEvent.VK_DOWN) {
+                    e.consume();
+                    return;
+                }
+
+                if (caret < limite) {
+                    areaTerminal.setCaretPosition(areaTerminal.getText().length());
+                }
+            }
+        });
 
         JScrollPane scroll = new JScrollPane(areaTerminal);
         scroll.setBorder(BorderFactory.createEmptyBorder());
@@ -79,80 +114,57 @@ public class cmdGUI extends JFrame implements Procesos.IGUICallback {
         });
 
         add(scroll, BorderLayout.CENTER);
-        add(crearFilaInput(), BorderLayout.SOUTH);
     }
 
-    private JPanel crearFilaInput() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BG_NEGRO);
-        panel.setBorder(BorderFactory.createEmptyBorder(2, 6, 4, 6));
-
-        labelPrompt = new JLabel("C:\\>");
-        labelPrompt.setFont(FONT_MONO);
-        labelPrompt.setForeground(COL_PROMPT);
-
-        campoInput = new JTextField();
-        campoInput.setFont(FONT_MONO);
-        campoInput.setBackground(BG_NEGRO);
-        campoInput.setForeground(COL_NORMAL);
-        campoInput.setCaretColor(COL_NORMAL);
-        campoInput.setBorder(BorderFactory.createEmptyBorder());
-
-        labelEstado = new JLabel("[ ESCRITURA - escriba EXIT para guardar ]");
-        labelEstado.setFont(new Font("Consolas", Font.PLAIN, 11));
-        labelEstado.setForeground(COL_ESCRITURA);
-        labelEstado.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
-        labelEstado.setVisible(false);
-
-        panel.add(labelPrompt, BorderLayout.WEST);
-        panel.add(campoInput,  BorderLayout.CENTER);
-        panel.add(labelEstado, BorderLayout.EAST);
-        return panel;
+    private int getLimiteEntrada() {
+        String texto = areaTerminal.getText();
+        int pos = texto.lastIndexOf(promptActual);
+        if (pos == -1) return texto.length();
+        return pos + promptActual.length();
     }
 
-    private void configurarEventos() {
-        campoInput.addActionListener(e -> {
-            String linea = campoInput.getText();
-            campoInput.setText("");
-            if (processor != null) processor.procesarLinea(linea);
-        });
+    private void imprimirPrompt() {
+        appendTexto(promptActual, COL_PROMPT);
     }
 
-    @Override
-    public void imprimir(String texto, Procesos.EstiloLinea estilo) {
+    private void appendTexto(String texto, Color color) {
         SwingUtilities.invokeLater(() -> {
             try {
                 Style s = doc.addStyle("s", null);
                 StyleConstants.setFontFamily(s, "Consolas");
                 StyleConstants.setFontSize(s, 14);
-                StyleConstants.setForeground(s, resolverColor(estilo));
-                doc.insertString(doc.getLength(), texto + "\n", s);
+                StyleConstants.setForeground(s, color);
+                doc.insertString(doc.getLength(), texto, s);
                 areaTerminal.setCaretPosition(doc.getLength());
             } catch (BadLocationException ex) { ex.printStackTrace(); }
         });
     }
 
     @Override
+    public void imprimir(String texto, Procesos.EstiloLinea estilo) {
+        appendTexto(texto + "\n", resolverColor(estilo));
+    }
+
+    @Override
     public void limpiarPantalla() {
         SwingUtilities.invokeLater(() -> {
-            try { doc.remove(0, doc.getLength()); }
-            catch (BadLocationException ex) { ex.printStackTrace(); }
+            try {
+                doc.remove(0, doc.getLength());
+                imprimirPrompt();
+            } catch (BadLocationException ex) { ex.printStackTrace(); }
         });
     }
 
     @Override
     public void actualizarPrompt(String prompt) {
-        SwingUtilities.invokeLater(() -> labelPrompt.setText(prompt));
+        promptActual = prompt;
     }
 
     @Override
     public void setModoEscritura(boolean activo) {
-        SwingUtilities.invokeLater(() -> {
-            Color c = activo ? COL_ESCRITURA : COL_NORMAL;
-            campoInput.setForeground(c);
-            campoInput.setCaretColor(c);
-            labelEstado.setVisible(activo);
-        });
+        SwingUtilities.invokeLater(() ->
+            areaTerminal.setCaretColor(activo ? COL_ESCRITURA : COL_NORMAL)
+        );
     }
 
     @Override
@@ -185,8 +197,7 @@ public class cmdGUI extends JFrame implements Procesos.IGUICallback {
     }
 
     private void mostrarBienvenida() {
-        imprimir("Microsoft Windows [Versi\u00F3n 10.0.19045.4651]", Procesos.EstiloLinea.NORMAL);
-        imprimir("(c) Microsoft Corporation. Todos los derechos reservados.", Procesos.EstiloLinea.NORMAL);
-        imprimir("", Procesos.EstiloLinea.NORMAL);
+        appendTexto("Microsoft Windows [Versi\u00F3n 10.0.19045.4651]\n", COL_NORMAL);
+        appendTexto("(c) Microsoft Corporation. Todos los derechos reservados.\n\n", COL_NORMAL);
     }
 }

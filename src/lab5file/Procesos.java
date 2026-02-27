@@ -53,8 +53,6 @@ public class Procesos {
         String trimmed = lineaRaw.trim();
         if (trimmed.isEmpty()) return;
 
-        gui.imprimir(fs.getPrompt() + trimmed, EstiloLinea.PROMPT_ECHO);
-
         int    espacio = trimmed.indexOf(' ');
         String cmd     = (espacio == -1 ? trimmed : trimmed.substring(0, espacio)).toLowerCase();
         String args    = (espacio == -1 ? "" : trimmed.substring(espacio + 1)).trim();
