@@ -163,7 +163,7 @@ public class Procesos {
 
         String contenido = (String) r.datos;
         gui.imprimir("", EstiloLinea.NORMAL);
-        gui.imprimir("FileReader  contenido de: " + args, EstiloLinea.ENCABEZADO);
+        gui.imprimir("FileReader contenido de: " + args, EstiloLinea.ENCABEZADO);
         gui.imprimir("\u2500".repeat(50), EstiloLinea.NORMAL);
         if (contenido == null || contenido.isBlank()) {
             gui.imprimir("  (Archivo vacio)", EstiloLinea.INFO);
@@ -177,8 +177,8 @@ public class Procesos {
     }
 
     private void salirModoEscritura() {
-        modoEscritura   = false;
-        archivoDestino  = null;
+        modoEscritura = false;
+        archivoDestino = null;
         bufferEscritura = new StringBuilder();
         gui.setModoEscritura(false);
     }
