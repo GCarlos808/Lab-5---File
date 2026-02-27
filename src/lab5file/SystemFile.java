@@ -7,10 +7,8 @@ import java.io.FileWriter;
 import java.io.FileReader;
 import java.io.BufferedReader;
 
-
-
 public class SystemFile {
-
+    
     public static class Nodo {
         
         public enum Tipo {
@@ -18,39 +16,25 @@ public class SystemFile {
             FILE
         }
         
-    private final Tipo tipo;
-    private final String nombre;
-    private String contenido;
-    private final List<Nodo> hijos;
-    
-         public Nodo(String nombre, Tipo tipo) {
-                this.nombre = nombre;
-                this.tipo = tipo;
-                this.contenido = "";
-                this.hijos = (tipo == Tipo.DIR) ? new ArrayList<>() : null;
+        private final Tipo   tipo;
+        private final String nombre;
+        private String       contenido;
+        private final List<Nodo> hijos;
+        
+        public Nodo(String nombre, Tipo tipo) {
+            this.nombre   = nombre;
+            this.tipo     = tipo;
+            this.contenido = "";
+            this.hijos    = (tipo == Tipo.DIR) ? new ArrayList<>() : null;
         }
         
-        public Tipo getTipo() {
-            return tipo;
-        }
-        public String getNombre() {
-            return nombre;
-        }
-        public String getContenido() {
-            return contenido;
-        }
-        public void setContenido(String c) {
-            this.contenido = c;
-        }
-        public List<Nodo> getHijos() {
-            return hijos;
-        }
-        public boolean esDir() {
-            return tipo == Tipo.DIR;
-        }
-        public boolean esFile() {
-            return tipo == Tipo.FILE;
-        }
+        public Tipo   getTipo()     { return tipo; }
+        public String getNombre()   { return nombre; }
+        public String getContenido(){ return contenido; }
+        public void   setContenido(String c) { this.contenido = c; }
+        public List<Nodo> getHijos(){ return hijos; }
+        public boolean esDir()      { return tipo == Tipo.DIR; }
+        public boolean esFile()     { return tipo == Tipo.FILE; }
         
         public Nodo buscarHijo(String nombre) {
             if (hijos == null) return null;
@@ -67,18 +51,19 @@ public class SystemFile {
         public boolean existeHijo(String nombre) {
             return buscarHijo(nombre) != null;
         }
-        
     }
+    
     public static class Resultado {
         public final boolean ok;
-        public final String mensaje;
-        public final Object datos;
+        public final String  mensaje;
+        public final Object  datos;
 
-        public Resultado(boolean ok, String mensaje) { this(ok, mensaje, null); }
-        public Resultado(boolean ok, String mensaje, Object datos) { 
-            this.ok = ok; this.mensaje = mensaje; this.datos = datos; 
+        public Resultado(boolean ok, String mensaje)              { this(ok, mensaje, null); }
+        public Resultado(boolean ok, String mensaje, Object datos){
+            this.ok = ok; this.mensaje = mensaje; this.datos = datos;
         }
     }
+    
     public static class ListadoDir {
         public final List<String> carpetas = new ArrayList<>();
         public final List<String> archivos = new ArrayList<>();
@@ -86,10 +71,10 @@ public class SystemFile {
     }
     
     private static final String RAIZ_DISCO = "cmd_data";
-    
+
     private final Nodo         root;
     private final List<String> rutaActual;
-    
+
     public SystemFile() {
         this.root      = new Nodo("root", Nodo.Tipo.DIR);
         this.rutaActual = new ArrayList<>();
@@ -144,7 +129,7 @@ public class SystemFile {
         if (rutaActual.isEmpty()) return "C:\\";
         return "C:\\" + String.join("\\", rutaActual) + "\\";
     }
-    
+
     public String getPrompt() {
         String r = getRutaString();
         return r.endsWith("\\") ? r.substring(0, r.length() - 1) + ">" : r + ">";
@@ -155,12 +140,11 @@ public class SystemFile {
         Nodo dir = getDirActual();
         if (dir.existeHijo(nombre))
             return new Resultado(false, "Ya existe: \"" + nombre + "\"");
-        
+
         File carpetaReal = new File(getRutaReal(), nombre);
         if (!carpetaReal.mkdirs())
             return new Resultado(false, "No se pudo crear la carpeta en disco.");
-        
-        
+
         dir.getHijos().add(new Nodo(nombre, Nodo.Tipo.DIR));
         return new Resultado(true, "Carpeta creada: " + nombre);
     }
@@ -180,13 +164,14 @@ public class SystemFile {
     public Resultado regresar() {
         if (rutaActual.isEmpty())
             return new Resultado(false, "Ya esta en el directorio raiz C:\\");
-            rutaActual.remove(rutaActual.size() - 1);
-            return new Resultado(true, "Regreso a: " + (rutaActual.isEmpty() ? "C:\\" : getRutaString()));
+        rutaActual.remove(rutaActual.size() - 1);
+        return new Resultado(true, "Regreso a: " + (rutaActual.isEmpty() ? "C:\\" : getRutaString()));
     }
+    
     public Resultado mfile(String nombre) {
         nombre = nombre.trim();
         if (!nombre.contains("."))
-            return new Resultado(false, "El archivo necesita extension. Ej: .txt .jpge");
+            return new Resultado(false, "El archivo necesita extension. Ej: .txt .jpg");
         Nodo dir = getDirActual();
         if (dir.existeHijo(nombre))
             return new Resultado(false, "Ya existe: \"" + nombre + "\"");
@@ -197,7 +182,6 @@ public class SystemFile {
         } catch (Exception e) {
             return new Resultado(false, "No se pudo crear el archivo en disco.");
         }
-        
         dir.getHijos().add(new Nodo(nombre, Nodo.Tipo.FILE));
         return new Resultado(true, "Archivo creado: " + nombre);
     }
@@ -216,9 +200,13 @@ public class SystemFile {
     }
     
     private void borrarRecursivo(File f) {
-        if (f.isDirectory())
-            for (File hijo : f.listFiles())
-                borrarRecursivo(hijo);
+        if (f.isDirectory()) {
+            File[] hijos = f.listFiles();
+            if (hijos != null) {
+                for (File hijo : hijos)
+                    borrarRecursivo(hijo);
+            }
+        }
         f.delete();
     }
     
@@ -227,7 +215,7 @@ public class SystemFile {
         Nodo dir  = getDirActual();
         Nodo hijo = dir.buscarHijo(nombre);
         if (hijo == null)
-            return new Resultado(false, "El archivo \"" + nombre + "\" no existe. Use Mfile primero.");
+            return new Resultado(false, "El archivo \"" + nombre + "\" no existe. Use mfile primero.");
         if (!hijo.esFile())
             return new Resultado(false, "\"" + nombre + "\" no es un archivo.");
         return new Resultado(true, "ok", hijo.getContenido());
@@ -238,7 +226,7 @@ public class SystemFile {
         Nodo hijo = dir.buscarHijo(nombre);
         if (hijo == null)
             return new Resultado(false, "El archivo \"" + nombre + "\" no existe.");
-        
+
         File archivoReal = new File(getRutaReal(), nombre);
         try (FileWriter fw = new FileWriter(archivoReal, false)) {
             fw.write(contenido);
@@ -275,7 +263,7 @@ public class SystemFile {
                 res.tamanos.add(new File(getRutaReal(), nodo.getNombre()).length());
             }
         }
-        
         return res;
+        
     }
 }
