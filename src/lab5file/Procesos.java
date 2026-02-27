@@ -18,6 +18,8 @@ public class Procesos {
         DIR_CARPETA, DIR_ARCHIVO, PROMPT_ECHO, ESCRITURA
     }
 
+    private static final String CHARS_INVALIDOS = "/\\:*?\"<>|";
+
     private final SystemFile   fs;
     private final IGUICallback gui;
 
@@ -66,45 +68,62 @@ public class Procesos {
             case "mfile":  cmdMfile(args);        break;
             case "rm":     cmdRm(args);           break;
             case "cd":     cmdCd(args);           break;
-            case "<...>":  cmdRegresar();         break;
+            case "<...>":  cmdCd("..");           break;
             case "dir":    cmdDir();              break;
-            case "date":   cmdDate();             break;
-            case "time":   cmdTime();             break;
+            case "date":   gui.imprimir("Fecha actual: " + new SimpleDateFormat("EEEE, dd 'de' MMMM 'de' yyyy", new java.util.Locale("es","ES")).format(new Date()), EstiloLinea.INFO); break;
+            case "time":   gui.imprimir("Hora actual: " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()), EstiloLinea.INFO); break;
             case "wr":     cmdWr(args);           break;
             case "rd":     cmdRd(args);           break;
+            case "echo":   cmdEcho(args);         break;
+            case "count":  cmdCount(args);        break;
             case "cls":    gui.limpiarPantalla(); break;
+            case "help":   gui.mostrarAyuda();    break;
             default:
                 gui.imprimir("'" + cmd + "' no se reconoce como comando.", EstiloLinea.ERROR);
         }
     }
 
+    private boolean requireArgs(String args, String uso) {
+        if (args.isEmpty()) {
+            gui.imprimir("Uso: " + uso, EstiloLinea.ERROR);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean nombreValido(String nombre) {
+        for (char c : CHARS_INVALIDOS.toCharArray()) {
+            if (nombre.indexOf(c) != -1) {
+                gui.imprimir("Nombre invalido. No se permiten: " + CHARS_INVALIDOS, EstiloLinea.ERROR);
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void cmdMkdir(String args) {
-        if (args.isEmpty()) { gui.imprimir("Uso: Mkdir <nombre>", EstiloLinea.ERROR); return; }
+        if (!requireArgs(args, "Mkdir <nombre>")) return;
+        if (!nombreValido(args)) return;
         SystemFile.Resultado r = fs.mkdir(args);
         gui.imprimir(r.mensaje, r.ok ? EstiloLinea.EXITO : EstiloLinea.ERROR);
     }
 
     private void cmdMfile(String args) {
-        if (args.isEmpty()) { gui.imprimir("Uso: Mfile <nombre.ext>", EstiloLinea.ERROR); return; }
+        if (!requireArgs(args, "Mfile <nombre.ext>")) return;
+        if (!nombreValido(args)) return;
         SystemFile.Resultado r = fs.mfile(args);
         gui.imprimir(r.mensaje, r.ok ? EstiloLinea.EXITO : EstiloLinea.ERROR);
     }
 
     private void cmdRm(String args) {
-        if (args.isEmpty()) { gui.imprimir("Uso: Rm <nombre>", EstiloLinea.ERROR); return; }
+        if (!requireArgs(args, "Rm <nombre>")) return;
         SystemFile.Resultado r = fs.rm(args);
         gui.imprimir(r.mensaje, r.ok ? EstiloLinea.EXITO : EstiloLinea.ERROR);
     }
 
     private void cmdCd(String args) {
-        if (args.isEmpty()) { gui.imprimir("Uso: Cd <carpeta>", EstiloLinea.ERROR); return; }
-        SystemFile.Resultado r = fs.cd(args);
-        if (r.ok) gui.actualizarPrompt(fs.getPrompt());
-        gui.imprimir(r.mensaje, r.ok ? EstiloLinea.INFO : EstiloLinea.ERROR);
-    }
-
-    private void cmdRegresar() {
-        SystemFile.Resultado r = fs.regresar();
+        if (!requireArgs(args, "Cd <carpeta>")) return;
+        SystemFile.Resultado r = args.equals("..") ? fs.regresar() : fs.cd(args);
         if (r.ok) gui.actualizarPrompt(fs.getPrompt());
         gui.imprimir(r.mensaje, r.ok ? EstiloLinea.INFO : EstiloLinea.ERROR);
     }
@@ -120,28 +139,15 @@ public class Procesos {
             for (String c : listado.carpetas)
                 gui.imprimir("  <DIR>          " + c, EstiloLinea.DIR_CARPETA);
             for (int i = 0; i < listado.archivos.size(); i++)
-                gui.imprimir(String.format("  %14d bytes  %s",
-                    listado.tamanos.get(i), listado.archivos.get(i)), EstiloLinea.DIR_ARCHIVO);
+                gui.imprimir(String.format("  %14d bytes  %s", listado.tamanos.get(i), listado.archivos.get(i)), EstiloLinea.DIR_ARCHIVO);
             gui.imprimir("\u2500".repeat(50), EstiloLinea.NORMAL);
-            gui.imprimir("  " + listado.carpetas.size() + " carpeta(s)   "
-                + listado.archivos.size() + " archivo(s)", EstiloLinea.INFO);
+            gui.imprimir("  " + listado.carpetas.size() + " carpeta(s)   " + listado.archivos.size() + " archivo(s)", EstiloLinea.INFO);
         }
         gui.imprimir("", EstiloLinea.NORMAL);
     }
 
-    private void cmdDate() {
-        String fecha = new SimpleDateFormat("EEEE, dd 'de' MMMM 'de' yyyy",
-            new java.util.Locale("es", "ES")).format(new Date());
-        gui.imprimir("Fecha actual: " + fecha, EstiloLinea.INFO);
-    }
-
-    private void cmdTime() {
-        gui.imprimir("Hora actual: " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()),
-            EstiloLinea.INFO);
-    }
-
     private void cmdWr(String args) {
-        if (args.isEmpty()) { gui.imprimir("Uso: Wr <archivo.ext>", EstiloLinea.ERROR); return; }
+        if (!requireArgs(args, "Wr <archivo.ext>")) return;
         SystemFile.Resultado r = fs.abrirParaEscritura(args);
         if (!r.ok) { gui.imprimir(r.mensaje, EstiloLinea.ERROR); return; }
 
@@ -150,14 +156,14 @@ public class Procesos {
         bufferEscritura = new StringBuilder((String) r.datos);
 
         gui.imprimir("", EstiloLinea.NORMAL);
-        gui.imprimir("FileWriter  archivo: " + args, EstiloLinea.ESCRITURA);
+        gui.imprimir("FileWriter archivo: " + args, EstiloLinea.ESCRITURA);
         gui.imprimir("  Ingrese el texto. Escriba EXIT para guardar y salir.", EstiloLinea.ESCRITURA);
         gui.imprimir("\u2500".repeat(50), EstiloLinea.ESCRITURA);
         gui.setModoEscritura(true);
     }
 
     private void cmdRd(String args) {
-        if (args.isEmpty()) { gui.imprimir("Uso: Rd <archivo.ext>", EstiloLinea.ERROR); return; }
+        if (!requireArgs(args, "Rd <archivo.ext>")) return;
         SystemFile.Resultado r = fs.leerArchivo(args);
         if (!r.ok) { gui.imprimir(r.mensaje, EstiloLinea.ERROR); return; }
 
@@ -176,9 +182,45 @@ public class Procesos {
         gui.imprimir("", EstiloLinea.NORMAL);
     }
 
+    private void cmdEcho(String args) {
+        if (!requireArgs(args, "Echo <texto>")) return;
+        gui.imprimir(args, EstiloLinea.NORMAL);
+    }
+
+    private void cmdCount(String args) {
+        if (!requireArgs(args, "Count <archivo.ext>")) return;
+        SystemFile.Resultado r = fs.leerArchivo(args);
+        if (!r.ok) { gui.imprimir(r.mensaje, EstiloLinea.ERROR); return; }
+
+        String contenido = (String) r.datos;
+
+        if (contenido == null || contenido.isBlank()) {
+            gui.imprimir("\"" + args + "\" esta vacio (0 lineas, 0 palabras, 0 caracteres).", EstiloLinea.INFO);
+            return;
+        }
+
+        String[] lineas   = contenido.split("\n");
+        int numLineas     = lineas.length;
+        int numPalabras   = 0;
+        int numCaracteres = contenido.length();
+
+        for (String linea : lineas)
+            if (!linea.trim().isEmpty())
+                numPalabras += linea.trim().split("\\s+").length;
+
+        gui.imprimir("", EstiloLinea.NORMAL);
+        gui.imprimir(" Estadisticas de: " + args, EstiloLinea.ENCABEZADO);
+        gui.imprimir("\u2500".repeat(50), EstiloLinea.NORMAL);
+        gui.imprimir("  Lineas:     " + numLineas,     EstiloLinea.INFO);
+        gui.imprimir("  Palabras:   " + numPalabras,   EstiloLinea.INFO);
+        gui.imprimir("  Caracteres: " + numCaracteres, EstiloLinea.INFO);
+        gui.imprimir("\u2500".repeat(50), EstiloLinea.NORMAL);
+        gui.imprimir("", EstiloLinea.NORMAL);
+    }
+
     private void salirModoEscritura() {
-        modoEscritura = false;
-        archivoDestino = null;
+        modoEscritura   = false;
+        archivoDestino  = null;
         bufferEscritura = new StringBuilder();
         gui.setModoEscritura(false);
     }
