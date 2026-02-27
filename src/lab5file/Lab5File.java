@@ -8,10 +8,11 @@ public class Lab5File {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ignored) {}
+
         SwingUtilities.invokeLater(() -> {
-            SystemFile fs = new SystemFile();
-            cmdGUI gui = new cmdGUI();
-            Procesos processor = new Procesos(fs, gui);
+            SystemFile fs        = new SystemFile();
+            cmdGUI     gui       = new cmdGUI();
+            Procesos   processor = new Procesos(fs, gui);
             gui.setProcessor(processor);
             gui.setVisible(true);
         });
